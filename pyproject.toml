@@ -1,0 +1,22 @@
+[project]
+name = "md-to-print"
+version = "0.1.0"
+description = "Markdown to printable 2-column PDF generator with file watching"
+readme = "README.md"
+authors = [
+    { name = "Scott Pierce", email = "ddrscott@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "markdown>=3.10",
+    "pygments>=2.19.2",
+    "watchdog>=6.0.0",
+    "weasyprint>=67.0",
+]
+
+[project.scripts]
+md-to-print = "md_to_print.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
