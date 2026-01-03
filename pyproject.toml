@@ -3,8 +3,20 @@ name = "md-to-print"
 version = "0.1.0"
 description = "Markdown to printable 2-column PDF generator with file watching"
 readme = "README.md"
+license = "MIT"
 authors = [
     { name = "Scott Pierce", email = "ddrscott@gmail.com" }
+]
+keywords = ["markdown", "pdf", "print", "weasyprint", "converter"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Processing :: Markup :: Markdown",
 ]
 requires-python = ">=3.11"
 dependencies = [
@@ -18,6 +30,17 @@ dependencies = [
 [project.scripts]
 md-to-print = "md_to_print.cli:main"
 
+[project.urls]
+Homepage = "https://github.com/ddrscott/md-to-print"
+Repository = "https://github.com/ddrscott/md-to-print"
+Issues = "https://github.com/ddrscott/md-to-print/issues"
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
