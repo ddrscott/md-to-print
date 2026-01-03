@@ -45,7 +45,7 @@
 
 @page {
   size: letter portrait;
-  margin: 0.75in 0.6in 0.7in 0.6in;
+  margin: 0.75in 0.6in 0.85in 0.6in;
   background: white;
 
   @top-center {
@@ -56,10 +56,11 @@
   }
 
   @bottom-left {
-    content: "askscottpierce.com";
+    content: string(source-path);
     font-family: var(--font-mono);
-    font-size: 8pt;
-    color: var(--orange);
+    font-size: 6.5pt;
+    color: var(--ink-faint);
+    max-width: 4in;
   }
 
   @bottom-center {
@@ -67,6 +68,13 @@
     font-family: var(--font-mono);
     font-size: 8pt;
     color: var(--ink-muted);
+  }
+
+  @bottom-right {
+    content: "Printed " string(generated-at);
+    font-family: var(--font-mono);
+    font-size: 7pt;
+    color: var(--ink-faint);
   }
 }
 
@@ -97,6 +105,21 @@ body {
   background: white;
 }
 
+/* Document metadata - off-screen but still rendered for string-set */
+.doc-meta {
+  position: absolute;
+  left: -9999px;
+  visibility: hidden;
+}
+
+.source-path {
+  string-set: source-path content();
+}
+
+.generated-at {
+  string-set: generated-at content();
+}
+
 /* Main content - 2 columns */
 article {
   columns: 2;
@@ -115,6 +138,7 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-mono);
   line-height: 1.25;
   color: var(--ink);
+  text-align: left;
   page-break-after: avoid;
   break-after: avoid;
 }
@@ -418,4 +442,45 @@ dd {
 .keep-together {
   page-break-inside: avoid;
   break-inside: avoid;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MERMAID DIAGRAMS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mermaid-wrapper {
+  margin: 1em 0;
+  column-span: all; /* Diagrams span both columns */
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.mermaid-diagram {
+  text-align: center;
+  padding: 0.5em 0;
+}
+
+.mermaid-diagram img,
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-error {
+  padding: 0.75em;
+  margin: 1em 0;
+  background: var(--stop-bg);
+  border-left: 3pt solid var(--stop);
+  border-radius: 4pt;
+  font-size: 0.9em;
+}
+
+.mermaid-error strong {
+  color: var(--stop);
+}
+
+.mermaid-error pre {
+  margin-top: 0.5em;
+  font-size: 0.85em;
+  background: white;
 }

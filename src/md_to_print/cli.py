@@ -4,35 +4,103 @@ import argparse
 import sys
 from pathlib import Path
 
+from rich.console import Console
+from rich.status import Status
+from rich.table import Table
+from rich.theme import Theme
+
 from .converter import convert_file
 from .watcher import watch_directory
 
+# Custom theme matching brand colors
+theme = Theme({
+    "info": "dim",
+    "success": "#3D7A4A",  # proceed green
+    "warning": "#E85D00",  # signal orange
+    "error": "#CC3333",    # stop red
+    "filename": "bold",
+    "muted": "#6B6B6B",
+})
 
-def process_file(file_path: Path) -> None:
-    """Process a single markdown file and print status."""
+console = Console(theme=theme)
+
+
+def process_file(file_path: Path, force: bool = False, show_spinner: bool = True) -> bool:
+    """Process a single markdown file and print status.
+
+    Returns:
+        True if file was converted, False if skipped or errored
+    """
+    from .converter import needs_rebuild
+
+    output_path = file_path.with_suffix(".pdf")
+
+    # Check if rebuild needed before showing spinner
+    if not force and not needs_rebuild(file_path, output_path):
+        console.print(f"  [muted]·[/] [filename]{file_path.name}[/] [muted](up to date)[/]")
+        return False
+
     try:
-        output_path = convert_file(file_path)
-        print(f"✓ {file_path.name} → {output_path.name}")
+        if show_spinner:
+            with console.status(f"[warning]Converting[/] [filename]{file_path.name}[/]...", spinner="dots") as status:
+                result = convert_file(file_path, force=force)
+        else:
+            result = convert_file(file_path, force=force)
+
+        if result is None:
+            console.print(f"  [muted]·[/] [filename]{file_path.name}[/] [muted](up to date)[/]")
+            return False
+
+        console.print(f"  [success]✓[/] [filename]{file_path.name}[/] → [success]{result.name}[/]")
+        return True
+
     except Exception as e:
-        print(f"✗ {file_path.name}: {e}", file=sys.stderr)
+        console.print(f"  [error]✗[/] [filename]{file_path.name}[/]: [error]{e}[/]")
+        return False
 
 
-def process_directory(directory: Path) -> int:
+def process_directory(directory: Path, force: bool = False) -> tuple[int, int]:
     """Process all markdown files in a directory.
 
     Returns:
-        Number of files processed
+        Tuple of (converted_count, skipped_count)
     """
     md_files = list(directory.glob("**/*.md"))
 
     if not md_files:
-        print(f"No markdown files found in {directory}")
-        return 0
+        console.print(f"[muted]No markdown files found in {directory}[/]")
+        return (0, 0)
+
+    console.print(f"[info]Found {len(md_files)} markdown file(s)[/]\n")
+
+    converted = 0
+    skipped = 0
 
     for md_file in sorted(md_files):
-        process_file(md_file)
+        if process_file(md_file, force=force):
+            converted += 1
+        else:
+            skipped += 1
 
-    return len(md_files)
+    return (converted, skipped)
+
+
+def print_summary(converted: int, skipped: int) -> None:
+    """Print a summary table of results."""
+    if converted == 0 and skipped == 0:
+        return
+
+    console.print()
+    table = Table(show_header=False, box=None, padding=(0, 1))
+    table.add_column(style="bold")
+    table.add_column(justify="right")
+
+    if converted > 0:
+        table.add_row("[success]Converted[/]", f"[success]{converted}[/]")
+    if skipped > 0:
+        table.add_row("[muted]Skipped (up to date)[/]", f"[muted]{skipped}[/]")
+
+    console.print(table)
 
 
 def main() -> None:
@@ -46,6 +114,7 @@ Examples:
   md-to-print document.md          Convert a single file
   md-to-print ./docs/              Convert all .md files in directory
   md-to-print --watch ./docs/      Watch directory for changes
+  md-to-print --force ./docs/      Force regenerate all PDFs
 """,
     )
 
@@ -62,6 +131,12 @@ Examples:
     )
 
     parser.add_argument(
+        "-f", "--force",
+        action="store_true",
+        help="Force regeneration even if PDF is up to date",
+    )
+
+    parser.add_argument(
         "-r", "--no-recursive",
         action="store_true",
         help="Don't process subdirectories (only applies to directories)",
@@ -71,42 +146,41 @@ Examples:
     path: Path = args.path.resolve()
 
     if not path.exists():
-        print(f"Error: Path does not exist: {path}", file=sys.stderr)
+        console.print(f"[error]Error: Path does not exist: {path}[/]", file=sys.stderr)
         sys.exit(1)
 
     if path.is_file():
         if args.watch:
-            # Watch the parent directory but only process this file
-            print(f"Watching {path.name} for changes...")
+            console.print(f"[warning]Watching[/] [filename]{path.name}[/] for changes...\n")
             watch_directory(
                 path.parent,
-                lambda p: process_file(p) if p == path else None,
+                lambda p: process_file(p, force=True) if p == path else None,
                 recursive=False,
             )
         else:
-            process_file(path)
+            process_file(path, force=args.force)
 
     elif path.is_dir():
         if args.watch:
             # Initial conversion of all files
-            count = process_directory(path)
-            if count > 0:
-                print(f"\nConverted {count} file(s)")
-                print()
+            converted, skipped = process_directory(path, force=args.force)
+            print_summary(converted, skipped)
 
-            # Then watch for changes
+            console.print(f"\n[warning]Watching[/] [filename]{path}[/] for changes...")
+            console.print("[muted]Press Ctrl+C to stop.[/]\n")
+
+            # Then watch for changes (always force on watch events)
             watch_directory(
                 path,
-                process_file,
+                lambda p: process_file(p, force=True),
                 recursive=not args.no_recursive,
             )
         else:
-            count = process_directory(path)
-            if count > 0:
-                print(f"\nConverted {count} file(s)")
+            converted, skipped = process_directory(path, force=args.force)
+            print_summary(converted, skipped)
 
     else:
-        print(f"Error: Invalid path: {path}", file=sys.stderr)
+        console.print(f"[error]Error: Invalid path: {path}[/]", file=sys.stderr)
         sys.exit(1)
 
 

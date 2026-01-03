@@ -60,6 +60,36 @@ This table should flow across columns/pages with headers repeating:
 | 19 | Tau Timer | System | Active | Low | Scheduling |
 | 20 | Upsilon Updater | Maintenance | Pending | Medium | Version control |
 
+## Mermaid Diagram
+
+Here's a flowchart rendered from Mermaid:
+
+```mermaid
+flowchart LR
+    A[Markdown] --> B[HTML]
+    B --> C[WeasyPrint]
+    C --> D[PDF]
+
+    style A fill:#F7F6F3,stroke:#E85D00
+    style D fill:#F7F6F3,stroke:#3D7A4A
+```
+
+And a sequence diagram:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI
+    participant Converter
+    participant WeasyPrint
+
+    User->>CLI: md-to-print doc.md
+    CLI->>Converter: convert_file()
+    Converter->>Converter: markdown_to_html()
+    Converter->>WeasyPrint: html_to_pdf()
+    WeasyPrint-->>User: doc.pdf
+```
+
 ## Blockquote
 
 > This is a blockquote. It should be styled nicely with a left border
