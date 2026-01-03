@@ -69,6 +69,62 @@ uv run md-to-print --watch ~/Google\ Drive/Shared\ Docs
 uv run md-to-print --watch ~/Dropbox/Notes
 ```
 
+## Quick Start: Permanent Downloads Watcher (macOS)
+
+Install globally and run automatically on login:
+
+```bash
+# Install as a global tool
+uv tool install -U -e .
+
+# Create LaunchAgent
+cat > ~/Library/LaunchAgents/com.md-to-print.watch.plist << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.md-to-print.watch</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$HOME/.local/bin/md-to-print</string>
+        <string>--watch</string>
+        <string>$HOME/Downloads</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/md-to-print.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/md-to-print.error.log</string>
+</dict>
+</plist>
+EOF
+
+# Replace $HOME with actual path (launchd doesn't expand variables)
+sed -i '' "s|\$HOME|$HOME|g" ~/Library/LaunchAgents/com.md-to-print.watch.plist
+
+# Start the service
+launchctl load ~/Library/LaunchAgents/com.md-to-print.watch.plist
+
+# Verify it's running
+launchctl list | grep md-to-print
+```
+
+**Manage the service:**
+```bash
+# Stop
+launchctl unload ~/Library/LaunchAgents/com.md-to-print.watch.plist
+
+# Start
+launchctl load ~/Library/LaunchAgents/com.md-to-print.watch.plist
+
+# View logs
+tail -f /tmp/md-to-print.log
+```
+
 ## Output
 
 PDFs are saved next to the source markdown files:
