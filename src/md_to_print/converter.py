@@ -137,6 +137,36 @@ def _classify_tables(html: str) -> str:
     return re.sub(r"<table[^>]*>.*?</table>", replace_table, html, flags=re.DOTALL | re.IGNORECASE)
 
 
+def _add_h1_page_breaks(html: str) -> str:
+    """Add page breaks before H1 tags that follow <hr> elements.
+
+    In markdown, `---` creates section breaks. H1s after these should
+    start on a new page to avoid orphaned headings.
+
+    WeasyPrint doesn't reliably handle page-break-before on column-spanning
+    elements inside a multi-column container. We close and reopen the article
+    to force a true page break.
+
+    Skips the first <hr><h1> pattern so the first major section stays on page 1.
+    """
+    # Pattern: <hr> followed by optional whitespace, then <h1>
+    pattern = re.compile(r'<hr\s*/?>(\s*)<h1', re.IGNORECASE)
+    matches = list(pattern.finditer(html))
+
+    if len(matches) <= 1:
+        return html  # No page breaks needed if 0 or 1 sections
+
+    # Skip the first match (Part 1 stays on page 1)
+    # Work backwards to preserve positions
+    for match in reversed(matches[1:]):
+        start, end = match.start(), match.end()
+        whitespace = match.group(1)
+        replacement = f'</article><article class="new-section">{whitespace}<h1'
+        html = html[:start] + replacement + html[end:]
+
+    return html
+
+
 def _has_mermaid_cli() -> bool:
     """Check if mermaid-cli (mmdc) is available."""
     return shutil.which("mmdc") is not None
@@ -267,6 +297,7 @@ def markdown_to_html(
 
     html_body = md.convert(md_content)
     html_body = _classify_tables(html_body)
+    html_body = _add_h1_page_breaks(html_body)
     pygments_css = get_pygments_css()
 
     # Metadata for running footer

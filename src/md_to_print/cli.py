@@ -158,11 +158,12 @@ Examples:
                 recursive=False,
             )
         else:
-            process_file(path, force=args.force)
+            # Direct invocation always converts (no date checking)
+            process_file(path, force=True)
 
     elif path.is_dir():
         if args.watch:
-            # Initial conversion of all files
+            # Initial conversion - check dates unless --force
             converted, skipped = process_directory(path, force=args.force)
             print_summary(converted, skipped)
 
@@ -176,7 +177,8 @@ Examples:
                 recursive=not args.no_recursive,
             )
         else:
-            converted, skipped = process_directory(path, force=args.force)
+            # Direct invocation always converts (no date checking)
+            converted, skipped = process_directory(path, force=True)
             print_summary(converted, skipped)
 
     else:
