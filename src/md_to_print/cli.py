@@ -1,6 +1,7 @@
 """Command-line interface for md-to-print."""
 
 import argparse
+import subprocess
 import sys
 from pathlib import Path
 
@@ -25,7 +26,23 @@ theme = Theme({
 console = Console(theme=theme)
 
 
-def process_file(file_path: Path, force: bool = False, show_spinner: bool = True) -> bool:
+def print_pdf(pdf_path: Path) -> bool:
+    """Send PDF to the default printer using lpr.
+
+    Returns:
+        True if print job was submitted successfully
+    """
+    try:
+        subprocess.run(["lpr", str(pdf_path)], check=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+    except FileNotFoundError:
+        # lpr not available
+        return False
+
+
+def process_file(file_path: Path, force: bool = False, show_spinner: bool = True, debug: bool = False, print_after: bool = False) -> bool:
     """Process a single markdown file and print status.
 
     Returns:
@@ -43,15 +60,23 @@ def process_file(file_path: Path, force: bool = False, show_spinner: bool = True
     try:
         if show_spinner:
             with console.status(f"[warning]Converting[/] [filename]{file_path.name}[/]...", spinner="dots") as status:
-                result = convert_file(file_path, force=force)
+                result = convert_file(file_path, force=force, debug=debug)
         else:
-            result = convert_file(file_path, force=force)
+            result = convert_file(file_path, force=force, debug=debug)
 
         if result is None:
             console.print(f"  [muted]·[/] [filename]{file_path.name}[/] [muted](up to date)[/]")
             return False
 
-        console.print(f"  [success]✓[/] [filename]{file_path.name}[/] → [success]{result.name}[/]")
+        status_parts = [f"  [success]✓[/] [filename]{file_path.name}[/] → [success]{result.name}[/]"]
+
+        if print_after:
+            if print_pdf(result):
+                status_parts.append("[muted](sent to printer)[/]")
+            else:
+                status_parts.append("[error](print failed)[/]")
+
+        console.print(" ".join(status_parts))
         return True
 
     except Exception as e:
@@ -59,7 +84,7 @@ def process_file(file_path: Path, force: bool = False, show_spinner: bool = True
         return False
 
 
-def process_directory(directory: Path, force: bool = False) -> tuple[int, int]:
+def process_directory(directory: Path, force: bool = False, debug: bool = False, print_after: bool = False) -> tuple[int, int]:
     """Process all markdown files in a directory.
 
     Returns:
@@ -77,7 +102,7 @@ def process_directory(directory: Path, force: bool = False) -> tuple[int, int]:
     skipped = 0
 
     for md_file in sorted(md_files):
-        if process_file(md_file, force=force):
+        if process_file(md_file, force=force, debug=debug, print_after=print_after):
             converted += 1
         else:
             skipped += 1
@@ -142,6 +167,19 @@ Examples:
         help="Don't process subdirectories (only applies to directories)",
     )
 
+    parser.add_argument(
+        "-d", "--debug",
+        action="store_true",
+        help="Save intermediate HTML file alongside PDF for debugging",
+    )
+
+    parser.add_argument(
+        "-p", "--print",
+        action="store_true",
+        dest="print_pdf",
+        help="Send PDF to default printer after generating",
+    )
+
     args = parser.parse_args()
     path: Path = args.path.resolve()
 
@@ -154,17 +192,17 @@ Examples:
             console.print(f"[warning]Watching[/] [filename]{path.name}[/] for changes...\n")
             watch_directory(
                 path.parent,
-                lambda p: process_file(p, force=True) if p == path else None,
+                lambda p: process_file(p, force=True, debug=args.debug, print_after=args.print_pdf) if p == path else None,
                 recursive=False,
             )
         else:
             # Direct invocation always converts (no date checking)
-            process_file(path, force=True)
+            process_file(path, force=True, debug=args.debug, print_after=args.print_pdf)
 
     elif path.is_dir():
         if args.watch:
             # Initial conversion - check dates unless --force
-            converted, skipped = process_directory(path, force=args.force)
+            converted, skipped = process_directory(path, force=args.force, debug=args.debug, print_after=args.print_pdf)
             print_summary(converted, skipped)
 
             console.print(f"\n[warning]Watching[/] [filename]{path}[/] for changes...")
@@ -173,12 +211,12 @@ Examples:
             # Then watch for changes (always force on watch events)
             watch_directory(
                 path,
-                lambda p: process_file(p, force=True),
+                lambda p: process_file(p, force=True, debug=args.debug, print_after=args.print_pdf),
                 recursive=not args.no_recursive,
             )
         else:
             # Direct invocation always converts (no date checking)
-            converted, skipped = process_directory(path, force=True)
+            converted, skipped = process_directory(path, force=True, debug=args.debug, print_after=args.print_pdf)
             print_summary(converted, skipped)
 
     else:

@@ -137,31 +137,51 @@ def _classify_tables(html: str) -> str:
     return re.sub(r"<table[^>]*>.*?</table>", replace_table, html, flags=re.DOTALL | re.IGNORECASE)
 
 
-def _add_h1_page_breaks(html: str) -> str:
-    """Add page breaks before H1 tags that follow <hr> elements.
+def _wrap_h1_with_content(html: str) -> str:
+    """Wrap H1 headers with their following content to prevent orphans.
 
     In markdown, `---` creates section breaks. H1s after these should
-    start on a new page to avoid orphaned headings.
+    start on a new page with at least the first paragraph of content.
 
-    WeasyPrint doesn't reliably handle page-break-before on column-spanning
-    elements inside a multi-column container. We close and reopen the article
-    to force a true page break.
+    WeasyPrint doesn't reliably handle break-before on column-spanning
+    elements inside a multi-column container. We close and reopen the
+    article tag to force a true page break, then wrap the H1 and its
+    first content element to keep them together.
 
-    Skips the first <hr><h1> pattern so the first major section stays on page 1.
+    The first H1 (Part 1) stays in the normal flow on page 1.
+    Subsequent H1s after <hr> start on new pages.
     """
-    # Pattern: <hr> followed by optional whitespace, then <h1>
-    pattern = re.compile(r'<hr\s*/?>(\s*)<h1', re.IGNORECASE)
+    # Pattern: <hr> followed by <h1>...</h1> and first block element
+    # Use [^<]* for H1 content to prevent crossing tag boundaries
+    # Include h2 as valid first element (common in documents)
+    pattern = re.compile(
+        r'<hr\s*/?>(\s*)<h1([^>]*)>([^<]*(?:<(?!/h1)[^<]*)*)</h1>(\s*)(<(?:p|ul|ol|div|blockquote|table|pre|h2)[^>]*>.*?</(?:p|ul|ol|div|blockquote|table|pre|h2)>)',
+        re.DOTALL | re.IGNORECASE
+    )
+
     matches = list(pattern.finditer(html))
 
-    if len(matches) <= 1:
-        return html  # No page breaks needed if 0 or 1 sections
+    if not matches:
+        return html
 
-    # Skip the first match (Part 1 stays on page 1)
     # Work backwards to preserve positions
-    for match in reversed(matches[1:]):
+    for match in reversed(matches):
         start, end = match.start(), match.end()
-        whitespace = match.group(1)
-        replacement = f'</article><article class="new-section">{whitespace}<h1'
+        whitespace1 = match.group(1)
+        h1_attrs = match.group(2)
+        h1_content = match.group(3)
+        whitespace2 = match.group(4)
+        first_element = match.group(5)
+
+        # Close article, start new article with page break, wrap H1 + content
+        replacement = (
+            f'</article>'
+            f'<article class="new-page">'
+            f'<div class="h1-section">{whitespace1}'
+            f'<h1{h1_attrs}>{h1_content}</h1>{whitespace2}'
+            f'{first_element}'
+            f'</div>'
+        )
         html = html[:start] + replacement + html[end:]
 
     return html
@@ -297,7 +317,7 @@ def markdown_to_html(
 
     html_body = md.convert(md_content)
     html_body = _classify_tables(html_body)
-    html_body = _add_h1_page_breaks(html_body)
+    html_body = _wrap_h1_with_content(html_body)
     pygments_css = get_pygments_css()
 
     # Metadata for running footer
@@ -373,12 +393,13 @@ def needs_rebuild(input_path: Path, output_path: Path) -> bool:
     return input_path.stat().st_mtime > output_path.stat().st_mtime
 
 
-def convert_file(input_path: Path, force: bool = False) -> Path | None:
+def convert_file(input_path: Path, force: bool = False, debug: bool = False) -> Path | None:
     """Convert a markdown file to PDF.
 
     Args:
         input_path: Path to the markdown file
         force: If True, regenerate even if PDF is up to date
+        debug: If True, save intermediate HTML file alongside PDF
 
     Returns:
         Path to the generated PDF file, or None if skipped (already up to date)
@@ -408,6 +429,11 @@ def convert_file(input_path: Path, force: bool = False) -> Path | None:
         source_path=source_path,
         generated_at=generated_at,
     )
+
+    # Save intermediate HTML for debugging
+    if debug:
+        html_path = input_path.with_suffix(".html")
+        html_path.write_text(html_content, encoding="utf-8")
 
     html_to_pdf(
         html_content,

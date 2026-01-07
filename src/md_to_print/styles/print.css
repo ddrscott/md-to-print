@@ -159,10 +159,17 @@ h1 {
   margin-top: 1.5em;
 }
 
-/* New article section starts on a new page */
-article.new-section {
-  page-break-before: always;
+/* New page article - forces page break via article boundary */
+article.new-page {
   break-before: page;
+  page-break-before: always;
+}
+
+/* H1 section wrapper - keeps H1 with its first content element */
+.h1-section {
+  column-span: all;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 h2 {
