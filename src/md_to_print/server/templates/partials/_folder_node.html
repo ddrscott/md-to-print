@@ -1,0 +1,40 @@
+{% if node.is_file %}
+{# Markdown file #}
+<li>
+    <a href="/?path={{ node.path }}" class="font-mono text-sm {{ 'active' if current_path == node.path else '' }}">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        {{ node.name }}
+    </a>
+</li>
+{% elif node.children %}
+{# Folder with children #}
+<li>
+    <details {% if current_path.startswith(node.path) %}open{% endif %}>
+        <summary class="font-mono text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 {{ 'text-primary' if node.has_markdown else 'text-ink-muted' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            <a href="/?path={{ node.path }}" class="hover:text-primary">{{ node.name }}</a>
+        </summary>
+        <ul>
+            {% for child in node.children %}
+            {% with node=child %}
+            {% include "partials/_folder_node.html" %}
+            {% endwith %}
+            {% endfor %}
+        </ul>
+    </details>
+</li>
+{% else %}
+{# Empty folder #}
+<li>
+    <a href="/?path={{ node.path }}" class="font-mono text-sm {{ 'active' if current_path == node.path else '' }}">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 {{ 'text-primary' if node.has_markdown else 'text-ink-muted' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+        {{ node.name }}
+    </a>
+</li>
+{% endif %}

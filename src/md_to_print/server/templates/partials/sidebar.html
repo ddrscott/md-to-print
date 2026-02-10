@@ -1,0 +1,46 @@
+<!-- Search input -->
+<div class="px-2 mb-3">
+    <div class="relative">
+        <input type="text"
+               id="file-search"
+               placeholder="Search files... (⌘K)"
+               class="input input-sm input-bordered w-full pr-8 font-mono text-sm bg-base-100"
+               autocomplete="off">
+        <kbd class="kbd kbd-xs absolute right-2 top-1/2 -translate-y-1/2 opacity-50">⌘K</kbd>
+    </div>
+</div>
+
+<!-- Sort controls -->
+<div class="flex items-center gap-1 mb-2 px-2">
+    <span class="text-xs text-ink-muted font-mono">Sort:</span>
+    <div class="join join-horizontal">
+        <a href="/?path={{ current_path }}&sort=name&order={{ 'desc' if sort == 'name' and order == 'asc' else 'asc' }}"
+           class="join-item btn btn-xs {{ 'btn-primary' if sort == 'name' else 'btn-ghost' }}">
+            Name{% if sort == 'name' %}<span class="ml-0.5">{{ '↑' if order == 'asc' else '↓' }}</span>{% endif %}
+        </a>
+        <a href="/?path={{ current_path }}&sort=date&order={{ 'desc' if sort == 'date' and order == 'asc' else 'asc' }}"
+           class="join-item btn btn-xs {{ 'btn-primary' if sort == 'date' else 'btn-ghost' }}">
+            Date{% if sort == 'date' %}<span class="ml-0.5">{{ '↑' if order == 'asc' else '↓' }}</span>{% endif %}
+        </a>
+    </div>
+</div>
+
+<!-- Flat file list -->
+<ul id="file-list" class="menu menu-sm px-1 flex-1 overflow-y-auto">
+    {% for file in all_files %}
+    <li class="file-item" data-name="{{ file.name|lower }}" data-path="{{ file.path|lower }}" data-dir="{{ file.directory|lower }}">
+        <a href="/?path={{ file.path }}"
+           class="flex flex-col items-start py-2 {{ 'active' if current_path == file.path else '' }}">
+            <span class="font-mono text-sm truncate w-full">{{ file.name }}</span>
+            {% if file.directory %}
+            <span class="text-xs text-ink-faint font-mono truncate w-full text-right">{{ file.directory }}</span>
+            {% endif %}
+        </a>
+    </li>
+    {% endfor %}
+</ul>
+
+<!-- No results message (hidden by default) -->
+<div id="no-results" class="hidden px-4 py-8 text-center">
+    <p class="text-ink-muted text-sm font-mono">No files match</p>
+</div>

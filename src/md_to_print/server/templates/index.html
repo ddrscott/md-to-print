@@ -1,0 +1,640 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if preview %}{{ preview.title }} - {% endif %}md-to-print
+{% endblock %}
+
+{% block body %}
+<div class="drawer" id="main-drawer">
+    <input id="sidebar-drawer" type="checkbox" class="drawer-toggle" checked />
+
+    <!-- Main content area - full height -->
+    <div class="drawer-content flex flex-col h-screen">
+        <!-- Sidebar toggle button (floats when sidebar is closed) -->
+        <label for="sidebar-drawer" class="sidebar-toggle-btn" id="sidebar-toggle" title="Toggle sidebar">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-5 h-5 stroke-current">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </label>
+
+        <!-- Page content - takes remaining height -->
+        <main class="flex-1 overflow-hidden">
+            {% if is_file_view and preview %}
+            <!-- File preview - horizontal scroll reading -->
+            <div class="reading-container"
+                 id="reading-container"
+                 hx-get="/partials/preview?path={{ current_file }}"
+                 hx-trigger="sse:file_modified[detail.path=='{{ current_file }}']"
+                 hx-swap="innerHTML"
+                 hx-target="#paged-content">
+
+                <div class="paged-content" id="paged-content">
+                    {% include "partials/preview.html" %}
+                </div>
+            </div>
+
+            <!-- Expand modal for diagrams -->
+            <div class="expand-modal" id="expand-modal" onclick="closeExpandModal(event)">
+                <button class="expand-modal-close" onclick="closeExpandModal()" title="Close (Esc)">×</button>
+                <div class="expand-modal-content" id="expand-modal-content"></div>
+            </div>
+
+            {% else %}
+            <!-- No file selected - show placeholder -->
+            <div class="flex items-center justify-center h-full text-center p-8">
+                <div class="max-w-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-ink-faint mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p class="text-ink-muted font-mono text-sm">Select a document from the sidebar</p>
+                </div>
+            </div>
+            {% endif %}
+        </main>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="drawer-side z-40">
+        <label for="sidebar-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+        <aside class="w-80 min-h-full bg-base-200 border-r border-base-300 flex flex-col">
+            <!-- Branding header -->
+            <div class="p-3 border-b border-base-300 flex items-center justify-between">
+                <a href="/" class="font-mono text-sm font-bold text-primary hover:text-orange-hover">
+                    <span class="text-ink-muted">//</span> md-to-print
+                </a>
+                <div class="flex items-center gap-1">
+                    <!-- Theme toggle -->
+                    <label class="swap swap-rotate btn btn-ghost btn-xs btn-circle">
+                        <input type="checkbox" class="theme-controller" value="dark" />
+                        <svg class="swap-off fill-current w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M5.64,17l-.71.71a1,1,0,0,0,0,1.41,1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,5.64,17ZM5,12a1,1,0,0,0-1-1H3a1,1,0,0,0,0,2H4A1,1,0,0,0,5,12Zm7-7a1,1,0,0,0,1-1V3a1,1,0,0,0-2,0V4A1,1,0,0,0,12,5ZM5.64,7.05a1,1,0,0,0,.7.29,1,1,0,0,0,.71-.29,1,1,0,0,0,0-1.41l-.71-.71A1,1,0,0,0,4.93,6.34Zm12,.29a1,1,0,0,0,.7-.29l.71-.71a1,1,0,1,0-1.41-1.41L17,5.64a1,1,0,0,0,0,1.41A1,1,0,0,0,17.66,7.34ZM21,11H20a1,1,0,0,0,0,2h1a1,1,0,0,0,0-2Zm-9,8a1,1,0,0,0-1,1v1a1,1,0,0,0,2,0V20A1,1,0,0,0,12,19ZM18.36,17A1,1,0,0,0,17,18.36l.71.71a1,1,0,0,0,1.41,0,1,1,0,0,0,0-1.41ZM12,6.5A5.5,5.5,0,1,0,17.5,12,5.51,5.51,0,0,0,12,6.5Zm0,9A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/>
+                        </svg>
+                        <svg class="swap-on fill-current w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M21.64,13a1,1,0,0,0-1.05-.14,8.05,8.05,0,0,1-3.37.73A8.15,8.15,0,0,1,9.08,5.49a8.59,8.59,0,0,1,.25-2A1,1,0,0,0,8,2.36,10.14,10.14,0,1,0,22,14.05,1,1,0,0,0,21.64,13Zm-9.5,6.69A8.14,8.14,0,0,1,7.08,5.22v.27A10.15,10.15,0,0,0,17.22,15.63a9.79,9.79,0,0,0,2.1-.22A8.11,8.11,0,0,1,12.14,19.73Z"/>
+                        </svg>
+                    </label>
+                    <!-- Collapse sidebar -->
+                    <label for="sidebar-drawer" class="btn btn-ghost btn-xs btn-circle" title="Collapse sidebar">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-4 h-4 stroke-current">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+                        </svg>
+                    </label>
+                </div>
+            </div>
+            <!-- File list -->
+            <div class="flex-1 overflow-y-auto overflow-x-hidden p-3">
+                <div id="folder-tree"
+                     hx-get="/partials/sidebar?current_path={{ current_path }}"
+                     hx-trigger="sse:file_created, sse:file_deleted"
+                     hx-swap="innerHTML">
+                    {% include "partials/sidebar.html" %}
+                </div>
+            </div>
+            <!-- Reading controls -->
+            <div class="border-t border-base-300 p-3" id="sidebar-controls">
+                <div class="text-xs font-mono font-semibold text-ink-muted mb-3">Reading</div>
+                <!-- Column Width -->
+                <div class="mb-3">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-ink-muted">Width</span>
+                        <span class="text-xs text-ink-muted font-mono" id="width-value">380px</span>
+                    </div>
+                    <input type="range" id="column-width" min="280" max="600" value="380" step="20">
+                </div>
+                <!-- Column Gap -->
+                <div class="mb-3">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-ink-muted">Gap</span>
+                        <span class="text-xs text-ink-muted font-mono" id="gap-value">40px</span>
+                    </div>
+                    <input type="range" id="column-gap" min="20" max="80" value="40" step="10">
+                </div>
+                <!-- Text Alignment -->
+                <div class="mb-3">
+                    <span class="text-xs text-ink-muted block mb-1">Align</span>
+                    <div class="join w-full">
+                        <button class="join-item btn btn-xs flex-1" data-align="left" title="Left align">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="3" y1="6" x2="21" y2="6"></line>
+                                <line x1="3" y1="12" x2="15" y2="12"></line>
+                                <line x1="3" y1="18" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                        <button class="join-item btn btn-xs btn-primary flex-1" data-align="justify" title="Justify">
+                            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="3" y1="6" x2="21" y2="6"></line>
+                                <line x1="3" y1="12" x2="21" y2="12"></line>
+                                <line x1="3" y1="18" x2="21" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <!-- Reset -->
+                <button class="btn btn-xs btn-ghost w-full text-ink-muted" id="reset-controls">Reset</button>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script>
+    // Theme persistence
+    const themeController = document.querySelector('.theme-controller');
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    if (themeController) themeController.checked = savedTheme === 'dark';
+
+    if (themeController) {
+        themeController.addEventListener('change', (e) => {
+            const theme = e.target.checked ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+        });
+    }
+
+    // Sidebar state persistence
+    const sidebarDrawer = document.getElementById('sidebar-drawer');
+    const savedSidebar = localStorage.getItem('sidebarOpen');
+    if (savedSidebar !== null) {
+        sidebarDrawer.checked = savedSidebar === 'true';
+    }
+    sidebarDrawer.addEventListener('change', (e) => {
+        localStorage.setItem('sidebarOpen', e.target.checked);
+    });
+
+    // Reading view - natural horizontal scroll
+    const pagedContent = document.getElementById('paged-content');
+
+    // Keyboard navigation for horizontal scrolling
+    document.addEventListener('keydown', (e) => {
+        if (!pagedContent) return;
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        const scrollAmount = 400; // Scroll by roughly one column width
+
+        switch(e.key) {
+            case 'ArrowLeft':
+                pagedContent.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+                e.preventDefault();
+                break;
+            case 'ArrowRight':
+            case ' ':
+                pagedContent.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+                e.preventDefault();
+                break;
+            case 'Home':
+                pagedContent.scrollTo({ left: 0, behavior: 'smooth' });
+                e.preventDefault();
+                break;
+            case 'End':
+                pagedContent.scrollTo({ left: pagedContent.scrollWidth, behavior: 'smooth' });
+                e.preventDefault();
+                break;
+            case 'Escape':
+                closeExpandModal();
+                break;
+        }
+    });
+
+    // Expand modal functions
+    function openExpandModal(element) {
+        const modal = document.getElementById('expand-modal');
+        const content = document.getElementById('expand-modal-content');
+        if (!modal || !content) return;
+
+        // Clone the element content
+        content.innerHTML = element.innerHTML;
+
+        // Scale up any SVGs (mermaid diagrams) to fill the viewport
+        const svgs = content.querySelectorAll('svg');
+        svgs.forEach(svg => {
+            // Get current dimensions from attributes or viewBox
+            const viewBox = svg.getAttribute('viewBox');
+            let currentWidth = parseFloat(svg.getAttribute('width')) || 300;
+            let currentHeight = parseFloat(svg.getAttribute('height')) || 200;
+
+            if (viewBox) {
+                const parts = viewBox.split(/[\s,]+/);
+                if (parts.length >= 4) {
+                    currentWidth = parseFloat(parts[2]) || currentWidth;
+                    currentHeight = parseFloat(parts[3]) || currentHeight;
+                }
+            }
+
+            // Target: fill 90% of viewport
+            const targetWidth = window.innerWidth * 0.9;
+            const targetHeight = window.innerHeight * 0.85;
+
+            // Calculate scale to fit while maintaining aspect ratio
+            const scaleX = targetWidth / currentWidth;
+            const scaleY = targetHeight / currentHeight;
+            const scale = Math.min(scaleX, scaleY);
+
+            // Apply scaled dimensions - use the full available space
+            svg.style.width = (currentWidth * scale) + 'px';
+            svg.style.height = (currentHeight * scale) + 'px';
+            svg.style.maxWidth = 'none';
+            svg.style.maxHeight = 'none';
+        });
+
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeExpandModal(event) {
+        if (event && event.target.closest('.expand-modal-content')) return;
+        const modal = document.getElementById('expand-modal');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+    }
+
+    // Wrap tables in scrollable containers to prevent column overflow
+    function setupTables() {
+        const previewContent = document.querySelector('.preview-content');
+        if (!previewContent) return;
+
+        const tables = previewContent.querySelectorAll('table');
+        tables.forEach(table => {
+            // Skip if already wrapped
+            if (table.parentElement.classList.contains('table-wrapper')) return;
+
+            // Create outer container (non-scrolling, holds expand button)
+            const container = document.createElement('div');
+            container.className = 'table-container';
+
+            // Create inner wrapper (handles horizontal scrolling)
+            const wrapper = document.createElement('div');
+            wrapper.className = 'table-wrapper';
+
+            // Insert container, then wrapper with table
+            table.parentNode.insertBefore(container, table);
+            wrapper.appendChild(table);
+            container.appendChild(wrapper);
+
+            // Add expand button to outer container (stays fixed while table scrolls)
+            const btn = document.createElement('button');
+            btn.className = 'expand-btn';
+            btn.title = 'Expand table';
+            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>';
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                openExpandModal(wrapper);
+            };
+            container.appendChild(btn);
+        });
+    }
+
+    // Wrap code blocks with expand and copy buttons
+    function setupCodeBlocks() {
+        const previewContent = document.querySelector('.preview-content');
+        if (!previewContent) return;
+
+        // Find all code blocks (codehilite from Pygments, or plain pre)
+        const codeBlocks = previewContent.querySelectorAll('.codehilite, pre:not(.codehilite pre)');
+        codeBlocks.forEach(block => {
+            // Skip if already wrapped
+            if (block.parentElement.classList.contains('code-container')) return;
+
+            // Create container
+            const container = document.createElement('div');
+            container.className = 'code-container';
+            block.parentNode.insertBefore(container, block);
+            container.appendChild(block);
+
+            // Create action buttons container
+            const actions = document.createElement('div');
+            actions.className = 'code-actions';
+
+            // Copy button
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'action-btn';
+            copyBtn.title = 'Copy code';
+            copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+            copyBtn.onclick = async (e) => {
+                e.stopPropagation();
+                const code = block.querySelector('code, pre')?.textContent || block.textContent;
+                try {
+                    await navigator.clipboard.writeText(code);
+                    copyBtn.classList.add('copied');
+                    copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+                    setTimeout(() => {
+                        copyBtn.classList.remove('copied');
+                        copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+                    }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy:', err);
+                }
+            };
+
+            // Expand button
+            const expandBtn = document.createElement('button');
+            expandBtn.className = 'action-btn';
+            expandBtn.title = 'Expand code';
+            expandBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>';
+            expandBtn.onclick = (e) => {
+                e.stopPropagation();
+                openExpandModal(block);
+            };
+
+            actions.appendChild(copyBtn);
+            actions.appendChild(expandBtn);
+            container.appendChild(actions);
+        });
+    }
+
+    // Make diagrams and images expandable
+    function setupExpandableMedia() {
+        const previewContent = document.querySelector('.preview-content');
+        if (!previewContent) return;
+
+        // Find all mermaid diagrams (both PNG from server-side and SVG from client-side) and images
+        const diagrams = previewContent.querySelectorAll('.mermaid-diagram, .mermaid-wrapper img, .mermaid-wrapper svg');
+        const images = previewContent.querySelectorAll('article img:not(.mermaid-wrapper img)');
+
+        [...diagrams, ...images].forEach(el => {
+            // Skip if already wrapped
+            if (el.closest('.expandable-media')) return;
+
+            // Wrap in expandable container
+            const wrapper = document.createElement('div');
+            wrapper.className = 'expandable-media';
+            el.parentNode.insertBefore(wrapper, el);
+            wrapper.appendChild(el);
+
+            // Add expand button
+            const btn = document.createElement('button');
+            btn.className = 'expand-btn';
+            btn.title = 'Expand';
+            btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>';
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                openExpandModal(wrapper);
+            };
+            wrapper.appendChild(btn);
+
+            // Click on the media also expands
+            wrapper.addEventListener('click', () => openExpandModal(wrapper));
+        });
+    }
+
+    // Run on load and after HTMX swaps
+    document.addEventListener('DOMContentLoaded', () => {
+        setupTables();
+        setupCodeBlocks();
+        setupExpandableMedia();
+        setupReadingControls();
+        // Render any mermaid diagrams
+        if (typeof renderMermaidDiagrams === 'function') {
+            renderMermaidDiagrams();
+        }
+    });
+
+    document.body.addEventListener('htmx:afterSwap', (e) => {
+        if (e.target.id === 'paged-content' || e.target.closest('#paged-content')) {
+            setupTables();
+            setupCodeBlocks();
+            setupExpandableMedia();
+            // Render any mermaid diagrams after content swap
+            if (typeof renderMermaidDiagrams === 'function') {
+                setTimeout(renderMermaidDiagrams, 50);
+            }
+            // Render any ASCII diagrams after content swap
+            if (typeof renderAsciiDiagrams === 'function') {
+                setTimeout(renderAsciiDiagrams, 100);
+            }
+        }
+    });
+
+    // Reading controls (in sidebar)
+    function setupReadingControls() {
+        const widthSlider = document.getElementById('column-width');
+        const gapSlider = document.getElementById('column-gap');
+        const widthValue = document.getElementById('width-value');
+        const gapValue = document.getElementById('gap-value');
+        const alignBtns = document.querySelectorAll('[data-align]');
+        const resetBtn = document.getElementById('reset-controls');
+
+        // Default values
+        const defaults = { columnWidth: 380, columnGap: 40, textAlign: 'justify' };
+
+        // Load saved preferences
+        const saved = JSON.parse(localStorage.getItem('readingPrefs') || '{}');
+        const prefs = { ...defaults, ...saved };
+
+        // Apply initial values
+        function applyPrefs() {
+            document.documentElement.style.setProperty('--column-width', prefs.columnWidth + 'px');
+            document.documentElement.style.setProperty('--column-gap', prefs.columnGap + 'px');
+            const previewContent = document.querySelector('.preview-content');
+            if (previewContent) {
+                previewContent.style.textAlign = prefs.textAlign;
+            }
+            if (widthSlider) widthSlider.value = prefs.columnWidth;
+            if (gapSlider) gapSlider.value = prefs.columnGap;
+            if (widthValue) widthValue.textContent = prefs.columnWidth + 'px';
+            if (gapValue) gapValue.textContent = prefs.columnGap + 'px';
+            alignBtns.forEach(btn => {
+                btn.classList.toggle('btn-primary', btn.dataset.align === prefs.textAlign);
+            });
+        }
+        applyPrefs();
+
+        // Save preferences
+        function savePrefs() {
+            localStorage.setItem('readingPrefs', JSON.stringify(prefs));
+        }
+
+        // Column width slider
+        if (widthSlider) {
+            widthSlider.addEventListener('input', (e) => {
+                prefs.columnWidth = parseInt(e.target.value);
+                document.documentElement.style.setProperty('--column-width', prefs.columnWidth + 'px');
+                if (widthValue) widthValue.textContent = prefs.columnWidth + 'px';
+                savePrefs();
+            });
+        }
+
+        // Column gap slider
+        if (gapSlider) {
+            gapSlider.addEventListener('input', (e) => {
+                prefs.columnGap = parseInt(e.target.value);
+                document.documentElement.style.setProperty('--column-gap', prefs.columnGap + 'px');
+                if (gapValue) gapValue.textContent = prefs.columnGap + 'px';
+                savePrefs();
+            });
+        }
+
+        // Text alignment buttons
+        alignBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                prefs.textAlign = btn.dataset.align;
+                const previewContent = document.querySelector('.preview-content');
+                if (previewContent) {
+                    previewContent.style.textAlign = prefs.textAlign;
+                }
+                alignBtns.forEach(b => b.classList.toggle('btn-primary', b === btn));
+                savePrefs();
+            });
+        });
+
+        // Reset button
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                Object.assign(prefs, defaults);
+                applyPrefs();
+                savePrefs();
+            });
+        }
+    }
+
+    // Fuzzy search for file list with keyboard navigation
+    function setupFileSearch() {
+        const searchInput = document.getElementById('file-search');
+        const fileList = document.getElementById('file-list');
+        const noResults = document.getElementById('no-results');
+
+        if (!searchInput || !fileList) return;
+
+        let selectedIndex = -1;
+
+        // Simple fuzzy match - characters must appear in order
+        function fuzzyMatch(query, text) {
+            query = query.toLowerCase();
+            text = text.toLowerCase();
+            let qi = 0;
+            for (let ti = 0; ti < text.length && qi < query.length; ti++) {
+                if (text[ti] === query[qi]) qi++;
+            }
+            return qi === query.length;
+        }
+
+        function getVisibleItems() {
+            return Array.from(fileList.querySelectorAll('.file-item')).filter(
+                item => item.style.display !== 'none'
+            );
+        }
+
+        function updateSelection(newIndex) {
+            const visibleItems = getVisibleItems();
+
+            // Clear previous selection
+            visibleItems.forEach(item => item.classList.remove('keyboard-selected'));
+
+            // Clamp index
+            if (visibleItems.length === 0) {
+                selectedIndex = -1;
+                return;
+            }
+
+            selectedIndex = Math.max(0, Math.min(newIndex, visibleItems.length - 1));
+
+            // Highlight new selection
+            const selected = visibleItems[selectedIndex];
+            if (selected) {
+                selected.classList.add('keyboard-selected');
+                // Scroll into view if needed
+                selected.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+        }
+
+        function filterFiles(query) {
+            query = query.trim();
+            let visibleCount = 0;
+            const fileItems = fileList.querySelectorAll('.file-item');
+
+            fileItems.forEach(item => {
+                const name = item.dataset.name || '';
+                const path = item.dataset.path || '';
+                const dir = item.dataset.dir || '';
+                const searchText = name + ' ' + path + ' ' + dir;
+
+                if (!query || fuzzyMatch(query, searchText)) {
+                    item.style.display = '';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // Show/hide no results message
+            if (noResults) {
+                noResults.classList.toggle('hidden', visibleCount > 0);
+            }
+            fileList.classList.toggle('hidden', visibleCount === 0);
+
+            // Reset selection to first item when filtering
+            selectedIndex = visibleCount > 0 ? 0 : -1;
+            updateSelection(selectedIndex);
+        }
+
+        // Filter on input
+        searchInput.addEventListener('input', (e) => {
+            filterFiles(e.target.value);
+        });
+
+        // Keyboard navigation
+        searchInput.addEventListener('keydown', (e) => {
+            const visibleItems = getVisibleItems();
+
+            switch (e.key) {
+                case 'ArrowDown':
+                    e.preventDefault();
+                    updateSelection(selectedIndex + 1);
+                    break;
+
+                case 'ArrowUp':
+                    e.preventDefault();
+                    updateSelection(selectedIndex - 1);
+                    break;
+
+                case 'Enter':
+                    e.preventDefault();
+                    const selected = visibleItems[selectedIndex];
+                    if (selected) {
+                        const link = selected.querySelector('a');
+                        if (link) link.click();
+                    }
+                    break;
+
+                case 'Escape':
+                    e.preventDefault();
+                    if (searchInput.value) {
+                        searchInput.value = '';
+                        filterFiles('');
+                    } else {
+                        searchInput.blur();
+                    }
+                    break;
+            }
+        });
+
+        // Cmd-K / Ctrl-K to focus search
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                // Open sidebar if closed
+                const sidebarDrawer = document.getElementById('sidebar-drawer');
+                if (sidebarDrawer && !sidebarDrawer.checked) {
+                    sidebarDrawer.checked = true;
+                    localStorage.setItem('sidebarOpen', 'true');
+                }
+                searchInput.focus();
+                searchInput.select();
+            }
+        });
+
+        // Clear selection when clicking elsewhere
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#file-list') && !e.target.closest('#file-search')) {
+                const visibleItems = getVisibleItems();
+                visibleItems.forEach(item => item.classList.remove('keyboard-selected'));
+                selectedIndex = -1;
+            }
+        });
+    }
+
+    // Initialize file search on load
+    document.addEventListener('DOMContentLoaded', setupFileSearch);
+</script>
+{% endblock %}

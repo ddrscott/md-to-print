@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}md-to-print{% endblock %}</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400&display=swap" rel="stylesheet">
+
+    <!-- DaisyUI + Tailwind -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.23/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/sse.js"></script>
+
+    <!-- Mermaid for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        // Initialize mermaid with theme detection
+        function initMermaid() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: isDark ? 'dark' : 'default',
+                securityLevel: 'loose',
+                flowchart: { useMaxWidth: true },
+                sequence: { useMaxWidth: true },
+            });
+        }
+        initMermaid();
+
+        // Re-render mermaid diagrams when theme changes
+        async function renderMermaidDiagrams() {
+            initMermaid();
+            const elements = document.querySelectorAll('.mermaid:not([data-processed])');
+            if (elements.length > 0) {
+                await mermaid.run({ nodes: elements });
+                // Re-setup expandable media after mermaid renders SVGs
+                if (typeof setupExpandableMedia === 'function') {
+                    setupExpandableMedia();
+                }
+            }
+        }
+
+        // Watch for theme changes
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'data-theme') {
+                    // Re-render with new theme
+                    document.querySelectorAll('.mermaid[data-processed]').forEach(el => {
+                        el.removeAttribute('data-processed');
+                        el.innerHTML = el.getAttribute('data-original') || el.textContent;
+                    });
+                    renderMermaidDiagrams();
+                }
+            });
+        });
+        observer.observe(document.documentElement, { attributes: true });
+    </script>
+
+    <!-- Svgbob for ASCII diagram rendering -->
+    <script type="module">
+        // Dynamic import of bob-wasm
+        let bobModule = null;
+
+        async function loadBob() {
+            if (bobModule) return bobModule;
+            try {
+                bobModule = await import('https://esm.sh/bob-wasm@0.2.1');
+                await bobModule.default.loadWASM();
+                return bobModule;
+            } catch (err) {
+                console.error('Failed to load bob-wasm:', err);
+                return null;
+            }
+        }
+
+        // Render ASCII diagrams to SVG
+        window.renderAsciiDiagrams = async function() {
+            const bob = await loadBob();
+            if (!bob) return;
+
+            // Find code blocks with ascii/bob/svgbob language
+            const codeBlocks = document.querySelectorAll(
+                '.codehilite-ascii, .codehilite-bob, .codehilite-svgbob, ' +
+                'pre > code.language-ascii, pre > code.language-bob, pre > code.language-svgbob'
+            );
+
+            // Also find by data attribute or class on pre
+            const preBlocks = document.querySelectorAll(
+                'pre.ascii, pre.bob, pre.svgbob, pre[data-lang="ascii"], pre[data-lang="bob"], pre[data-lang="svgbob"]'
+            );
+
+            const allBlocks = [...codeBlocks, ...preBlocks];
+
+            for (const block of allBlocks) {
+                if (block.dataset.asciiProcessed) continue;
+
+                const pre = block.closest('pre') || block;
+                const code = block.tagName === 'CODE' ? block : pre.querySelector('code') || pre;
+                const ascii = code.textContent;
+
+                try {
+                    const svg = bob.default.convert(ascii);
+
+                    // Create wrapper for the rendered diagram
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'ascii-diagram';
+                    wrapper.innerHTML = svg;
+
+                    // Style the SVG
+                    const svgEl = wrapper.querySelector('svg');
+                    if (svgEl) {
+                        svgEl.style.maxWidth = '100%';
+                        svgEl.style.height = 'auto';
+                        // Apply theme colors
+                        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                        svgEl.style.setProperty('--stroke-color', isDark ? '#e0e0e0' : '#2C2C2C');
+                        svgEl.style.setProperty('--fill-color', isDark ? '#1a1a1a' : '#FFFEF9');
+                        // Update stroke colors in SVG
+                        svgEl.querySelectorAll('[stroke]').forEach(el => {
+                            if (el.getAttribute('stroke') === '#000' || el.getAttribute('stroke') === 'black') {
+                                el.setAttribute('stroke', isDark ? '#e0e0e0' : '#2C2C2C');
+                            }
+                        });
+                        svgEl.querySelectorAll('text').forEach(el => {
+                            el.style.fill = isDark ? '#e0e0e0' : '#2C2C2C';
+                        });
+                    }
+
+                    // Replace the pre/container with the diagram
+                    const container = pre.closest('.code-container') || pre;
+                    container.replaceWith(wrapper);
+
+                    block.dataset.asciiProcessed = 'true';
+                } catch (err) {
+                    console.error('Failed to render ASCII diagram:', err);
+                    pre.style.borderColor = 'var(--stop)';
+                }
+            }
+
+            // Re-setup expandable media after rendering
+            if (typeof setupExpandableMedia === 'function') {
+                setupExpandableMedia();
+            }
+        };
+
+        // Auto-render on load
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(window.renderAsciiDiagrams, 100);
+        });
+    </script>
+
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="/static/css/viewer.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        paper: '#FFFEF9',
+                        'paper-dark': '#F7F6F3',
+                        ink: '#2C2C2C',
+                        'ink-light': '#404040',
+                        'ink-muted': '#6B6B6B',
+                        'ink-faint': '#9a9a9a',
+                        orange: '#E85D00',
+                        'orange-hover': '#D4722A',
+                        proceed: '#3D7A4A',
+                        stop: '#CC3333',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+                        serif: ['Source Serif 4', 'Georgia', 'serif'],
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        /* Custom DaisyUI theme - clean black/white with orange accent */
+        [data-theme="light"] {
+            --p: 24 100% 45%;           /* primary: orange #E85D00 */
+            --pf: 24 79% 50%;           /* primary-focus: orange-hover */
+            --pc: 0 0% 100%;            /* primary-content: white */
+            --s: 136 33% 36%;           /* secondary: proceed green */
+            --sf: 136 33% 30%;
+            --sc: 0 0% 100%;
+            --a: 24 79% 50%;            /* accent: orange */
+            --af: 24 100% 45%;
+            --ac: 0 0% 100%;
+            --n: 0 0% 17%;              /* neutral: ink */
+            --nf: 0 0% 13%;
+            --nc: 0 0% 100%;
+            --b1: 43 100% 99%;          /* base-100: paper */
+            --b2: 40 23% 96%;           /* base-200: paper-dark */
+            --b3: 36 9% 83%;            /* base-300: border */
+            --bc: 0 0% 17%;             /* base-content: ink */
+            --in: 198 93% 60%;          /* info: blue */
+            --inc: 0 0% 100%;
+            --su: 136 33% 36%;          /* success: green */
+            --suc: 0 0% 100%;
+            --wa: 24 100% 45%;          /* warning: orange */
+            --wac: 0 0% 100%;
+            --er: 0 60% 50%;            /* error: red */
+            --erc: 0 0% 100%;
+            --rounded-box: 0.5rem;
+            --rounded-btn: 0.375rem;
+            --rounded-badge: 1rem;
+            --animation-btn: 0.2s;
+            --animation-input: 0.2s;
+            --btn-focus-scale: 0.98;
+            --border-btn: 1px;
+            --tab-border: 1px;
+            --tab-radius: 0.375rem;
+        }
+        [data-theme="dark"] {
+            --p: 24 100% 45%;           /* primary: orange */
+            --pf: 24 79% 50%;
+            --pc: 0 0% 100%;
+            --s: 136 33% 40%;           /* secondary: green */
+            --sf: 136 33% 35%;
+            --sc: 0 0% 100%;
+            --a: 24 79% 50%;            /* accent: orange */
+            --af: 24 100% 45%;
+            --ac: 0 0% 100%;
+            --n: 0 0% 88%;              /* neutral: light text */
+            --nf: 0 0% 80%;
+            --nc: 0 0% 10%;
+            --b1: 0 0% 10%;             /* base-100: dark bg */
+            --b2: 0 0% 15%;             /* base-200: slightly lighter */
+            --b3: 0 0% 22%;             /* base-300: borders */
+            --bc: 0 0% 88%;             /* base-content: light text */
+            --in: 198 93% 60%;
+            --inc: 0 0% 100%;
+            --su: 136 33% 40%;
+            --suc: 0 0% 100%;
+            --wa: 24 100% 45%;
+            --wac: 0 0% 100%;
+            --er: 0 60% 50%;
+            --erc: 0 0% 100%;
+            --rounded-box: 0.5rem;
+            --rounded-btn: 0.375rem;
+            --rounded-badge: 1rem;
+            --animation-btn: 0.2s;
+            --animation-input: 0.2s;
+            --btn-focus-scale: 0.98;
+            --border-btn: 1px;
+            --tab-border: 1px;
+            --tab-radius: 0.375rem;
+        }
+    </style>
+
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-base-100 min-h-screen" hx-ext="sse" sse-connect="/api/v1/events">
+    {% block body %}{% endblock %}
+
+    <script src="/static/js/sse-handler.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

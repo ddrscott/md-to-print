@@ -269,8 +269,14 @@ def _render_mermaid(code: str) -> str:
         </div>'''
 
 
-def _process_mermaid_blocks(md_content: str) -> str:
-    """Extract and render mermaid code blocks before markdown processing."""
+def _process_mermaid_blocks(md_content: str, client_side: bool = False) -> str:
+    """Extract and render mermaid code blocks before markdown processing.
+
+    Args:
+        md_content: Raw markdown text
+        client_side: If True, preserve mermaid blocks for browser rendering
+                     instead of server-side rendering with mmdc
+    """
     mermaid_pattern = re.compile(
         r'```mermaid\s*\n(.*?)\n```',
         re.DOTALL | re.IGNORECASE
@@ -278,11 +284,36 @@ def _process_mermaid_blocks(md_content: str) -> str:
 
     def replace_mermaid(match: re.Match) -> str:
         code = match.group(1).strip()
-        svg = _render_mermaid(code)
-        # Use HTML comment markers to protect from markdown processing
-        return f'\n\n<div class="mermaid-wrapper">{svg}</div>\n\n'
+        if client_side:
+            # Keep code for client-side rendering with mermaid.js
+            return f'\n\n<div class="mermaid-wrapper"><pre class="mermaid">{code}</pre></div>\n\n'
+        else:
+            # Server-side rendering with mmdc CLI
+            svg = _render_mermaid(code)
+            return f'\n\n<div class="mermaid-wrapper">{svg}</div>\n\n'
 
     return mermaid_pattern.sub(replace_mermaid, md_content)
+
+
+def _process_ascii_diagram_blocks(md_content: str) -> str:
+    """Process ASCII diagram code blocks for client-side rendering with svgbob/bob-wasm.
+
+    Recognizes code blocks with language: ascii, bob, svgbob
+    """
+    ascii_pattern = re.compile(
+        r'```(ascii|bob|svgbob)\s*\n(.*?)\n```',
+        re.DOTALL | re.IGNORECASE
+    )
+
+    def replace_ascii(match: re.Match) -> str:
+        lang = match.group(1).lower()
+        code = match.group(2)
+        # Preserve the code for client-side rendering with bob-wasm
+        # Use a pre with data-lang attribute for detection
+        escaped_code = code.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        return f'\n\n<div class="ascii-wrapper"><pre class="ascii" data-lang="{lang}">{escaped_code}</pre></div>\n\n'
+
+    return ascii_pattern.sub(replace_ascii, md_content)
 
 
 def markdown_to_html(
@@ -290,6 +321,7 @@ def markdown_to_html(
     title: str = "Document",
     source_path: str | None = None,
     generated_at: str | None = None,
+    client_side_mermaid: bool = False,
 ) -> str:
     """Convert markdown content to a full HTML document.
 
@@ -298,12 +330,15 @@ def markdown_to_html(
         title: Document title for the HTML head
         source_path: Absolute path to source file (for footer)
         generated_at: Generation timestamp (for footer)
+        client_side_mermaid: If True, preserve mermaid blocks for browser rendering
 
     Returns:
         Complete HTML document as string
     """
     # Process mermaid blocks first (before markdown conversion)
-    md_content = _process_mermaid_blocks(md_content)
+    md_content = _process_mermaid_blocks(md_content, client_side=client_side_mermaid)
+    # Process ASCII diagram blocks for client-side rendering
+    md_content = _process_ascii_diagram_blocks(md_content)
 
     md = markdown.Markdown(
         extensions=[

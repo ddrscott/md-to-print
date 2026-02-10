@@ -136,10 +136,14 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  md-to-print document.md          Convert a single file
-  md-to-print ./docs/              Convert all .md files in directory
-  md-to-print --watch ./docs/      Watch directory for changes
-  md-to-print --force ./docs/      Force regenerate all PDFs
+  md-to-print document.md                Convert a single file
+  md-to-print ./docs/                    Convert all .md files in directory
+  md-to-print --watch ./docs/            Watch directory for changes
+  md-to-print --force ./docs/            Force regenerate all PDFs
+  md-to-print ./docs/ --serve            Start web viewer (auto-selects port)
+  md-to-print ./docs/ --serve=8080       Start on specific port
+  md-to-print . --serve=0.0.0.0:8080     Bind to all interfaces
+  md-to-print . --serve --open           Start viewer and open browser
 """,
     )
 
@@ -180,12 +184,73 @@ Examples:
         help="Send PDF to default printer after generating",
     )
 
+    # Server mode arguments
+    parser.add_argument(
+        "-s", "--serve",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="[HOST:]PORT",
+        help="Start web server. Optional HOST:PORT (e.g., 0.0.0.0:8080) or just PORT. "
+             "Defaults to localhost with auto-selected port.",
+    )
+
+    parser.add_argument(
+        "-o", "--open",
+        action="store_true",
+        dest="open_browser",
+        help="Open browser automatically when server starts",
+    )
+
     args = parser.parse_args()
     path: Path = args.path.resolve()
 
     if not path.exists():
         console.print(f"[error]Error: Path does not exist: {path}[/]", file=sys.stderr)
         sys.exit(1)
+
+    # Server mode
+    if args.serve is not None:
+        from .server import run_server
+        import socket
+
+        # For serve mode, if path is a file, serve its parent directory
+        serve_path = path if path.is_dir() else path.parent
+
+        # Parse host:port from --serve argument
+        host = "127.0.0.1"
+        port = 0  # 0 means auto-select
+
+        if args.serve:
+            if ":" in args.serve:
+                # host:port format
+                host, port_str = args.serve.rsplit(":", 1)
+                try:
+                    port = int(port_str)
+                except ValueError:
+                    console.print(f"[error]Error: Invalid port '{port_str}'[/]", file=sys.stderr)
+                    sys.exit(1)
+            else:
+                # Just port
+                try:
+                    port = int(args.serve)
+                except ValueError:
+                    console.print(f"[error]Error: Invalid port '{args.serve}'[/]", file=sys.stderr)
+                    sys.exit(1)
+
+        # Find a free port if not specified
+        if port == 0:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind((host, 0))
+                port = s.getsockname()[1]
+
+        run_server(
+            root_path=serve_path,
+            host=host,
+            port=port,
+            open_browser=args.open_browser,
+        )
+        return
 
     if path.is_file():
         if args.watch:

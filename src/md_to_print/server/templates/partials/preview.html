@@ -1,0 +1,12 @@
+{% if preview %}
+<div class="preview-content">
+    <style>
+        {{ preview.pygments_css | safe }}
+    </style>
+    {{ preview.html | safe }}
+</div>
+{% else %}
+<div class="text-center py-12 text-ink-muted" style="column-span: all;">
+    <p class="font-mono">No preview available</p>
+</div>
+{% endif %}

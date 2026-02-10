@@ -1,11 +1,12 @@
 # md-to-print
 
-Markdown to printable 2-column PDF generator with file watching.
+Markdown to printable 2-column PDF generator with web viewer and file watching.
 
 **Extremely opinionated** for aging eyes. Large fonts, high contrast, generous spacing. If you prefer different styling, edit `src/md_to_print/styles/print.css` to taste.
 
 ## Features
 
+- **Web Viewer** - Browse and preview markdown files in your browser with live updates
 - Converts markdown files to beautifully styled PDFs
 - 2-column layout optimized for reading printed documents
 - Page numbers, source filename, and print date in footer
@@ -47,6 +48,58 @@ uv run md-to-print --watch document.md
 # Force regeneration (ignore timestamps)
 uv run md-to-print --force ./docs/
 ```
+
+## Web Viewer (Server Mode)
+
+Start a web server to browse and preview your markdown files with live updates:
+
+```bash
+# Start the viewer for current directory
+uv run md-to-print --serve .
+
+# Start with a specific directory and open browser automatically
+uv run md-to-print --serve ~/Documents/notes --open
+
+# Custom port
+uv run md-to-print --serve . --port 3000
+
+# All options
+uv run md-to-print --serve ./docs --host 0.0.0.0 --port 8080 --open
+```
+
+**Web Viewer Features:**
+- **Flat file list** with fuzzy search - all files at a glance, subdirectories shown as subtle labels
+- **⌘K quick search** - instant filtering as you type
+- **Full keyboard navigation** - Arrow keys to browse, Enter to select, Escape to clear
+- **Horizontal column reading** - optimized for retention, scroll left/right through content
+- **Adjustable reading controls** - column width, gap, and text alignment (persisted)
+- **Expandable content** - click to expand tables, code blocks, images, and diagrams
+- **Copy code blocks** - one-click copy to clipboard
+- Preview markdown files with full syntax highlighting
+- **Mermaid diagrams** - rendered client-side with full interactivity
+- **ASCII diagrams** - svgbob/bob-wasm support for text-based diagrams
+- Sort files by name or date (ascending/descending)
+- Live updates when files change (no refresh needed)
+- Dark mode support (persisted in browser)
+- Collapsible sidebar (state persisted)
+- Register as your default markdown viewer
+
+**Keyboard Shortcuts:**
+| Key | Action |
+|-----|--------|
+| `⌘K` / `Ctrl+K` | Focus search, open sidebar if closed |
+| `↑` / `↓` | Navigate file list |
+| `Enter` | Open selected file |
+| `Escape` | Clear search / blur input |
+| `←` / `→` | Scroll reading columns |
+| `Space` | Scroll right one column |
+| `Home` / `End` | Jump to start/end of document |
+
+**Use as Default Markdown Viewer (macOS):**
+
+1. Install globally: `uv tool install -U -e .`
+2. Create a simple wrapper script that opens the viewer
+3. Associate `.md` files with the wrapper in Finder
 
 ## Watch Mode Ideas
 
@@ -137,6 +190,7 @@ PDFs are saved next to the source markdown files:
 - Bold, italic, and inline code
 - Code blocks with syntax highlighting (Python, JavaScript, etc.)
 - Mermaid diagrams (flowcharts, sequence diagrams, state diagrams, etc.)
+- ASCII diagrams using svgbob (use `ascii`, `bob`, or `svgbob` as language)
 - Tables (auto-detected column span)
 - Ordered and unordered lists (with nesting)
 - Blockquotes with orange accent
@@ -157,9 +211,18 @@ Mermaid diagram styling is in `src/md_to_print/styles/mermaid-config.json`.
 
 ## Dependencies
 
+**PDF Generation:**
 - [WeasyPrint](https://weasyprint.org/) - HTML/CSS to PDF engine
-- [watchdog](https://github.com/gorakhargosh/watchdog) - File system monitoring
 - [markdown](https://python-markdown.github.io/) - Markdown to HTML conversion
 - [Pygments](https://pygments.org/) - Syntax highlighting
-- [Rich](https://rich.readthedocs.io/) - Beautiful CLI output
 - [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) (optional) - Diagram rendering
+
+**Web Viewer:**
+- [FastAPI](https://fastapi.tiangolo.com/) - Modern web framework
+- [uvicorn](https://www.uvicorn.org/) - ASGI server
+- [Jinja2](https://jinja.palletsprojects.com/) - HTML templating
+- [sse-starlette](https://github.com/sysid/sse-starlette) - Server-sent events
+
+**Shared:**
+- [watchdog](https://github.com/gorakhargosh/watchdog) - File system monitoring
+- [Rich](https://rich.readthedocs.io/) - Beautiful CLI output
