@@ -47,6 +47,9 @@ uv run md-to-print --watch document.md
 
 # Force regeneration (ignore timestamps)
 uv run md-to-print --force ./docs/
+
+# View a single file in browser (no server needed)
+uv run md-to-print --show document.md
 ```
 
 ## Web Viewer (Server Mode)
@@ -97,9 +100,40 @@ uv run md-to-print --serve ./docs --host 0.0.0.0 --port 8080 --open
 
 **Use as Default Markdown Viewer (macOS):**
 
-1. Install globally: `uv tool install -U -e .`
-2. Create a simple wrapper script that opens the viewer
-3. Associate `.md` files with the wrapper in Finder
+```bash
+# 1. Install globally
+uv tool install -e /path/to/md-to-print
+
+# 2. Create app bundle
+mkdir -p ~/Applications/MDViewer.app/Contents/MacOS
+
+cat > ~/Applications/MDViewer.app/Contents/MacOS/MDViewer << 'EOF'
+#!/bin/bash
+~/.local/bin/md-to-print --show "$1"
+EOF
+chmod +x ~/Applications/MDViewer.app/Contents/MacOS/MDViewer
+
+cat > ~/Applications/MDViewer.app/Contents/Info.plist << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key><string>MDViewer</string>
+    <key>CFBundleIdentifier</key><string>com.md-to-print.viewer</string>
+    <key>CFBundleName</key><string>MD Viewer</string>
+    <key>CFBundleVersion</key><string>1.0</string>
+    <key>CFBundleDocumentTypes</key>
+    <array><dict>
+        <key>CFBundleTypeExtensions</key><array><string>md</string><string>markdown</string></array>
+        <key>CFBundleTypeName</key><string>Markdown Document</string>
+        <key>CFBundleTypeRole</key><string>Viewer</string>
+    </dict></array>
+</dict>
+</plist>
+EOF
+
+# 3. Set as default: Right-click any .md file → Get Info → Open with → MDViewer.app → Change All
+```
 
 ## Watch Mode Ideas
 

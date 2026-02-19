@@ -23,19 +23,20 @@ async def index(
     path: str = "",
     sort: SortField = SortField.NAME,
     order: SortOrder = SortOrder.ASC,
+    minimal: bool = False,
     root_path: Path = Depends(get_root_path),
 ):
     """Main viewer page - file browser or markdown preview."""
     target_path = validate_path(root_path, path)
 
-    # Get flat file list for sidebar
-    all_files = get_all_markdown_files(root_path, sort, order)
+    # Get flat file list for sidebar (skip in minimal mode for faster single-file viewing)
+    all_files = [] if minimal else get_all_markdown_files(root_path, sort, order)
 
     # Determine if viewing a file or directory
     if target_path.is_file() and target_path.suffix.lower() == ".md":
         # Viewing a markdown file
         preview_data = render_markdown_for_web(target_path, root_path)
-        listing = list_directory(root_path, str(target_path.parent.relative_to(root_path)) if target_path.parent != root_path else "", sort, order)
+        listing = None if minimal else list_directory(root_path, str(target_path.parent.relative_to(root_path)) if target_path.parent != root_path else "", sort, order)
 
         return templates.TemplateResponse(
             "index.html",
@@ -49,6 +50,7 @@ async def index(
                 "sort": sort.value,
                 "order": order.value,
                 "is_file_view": True,
+                "minimal": minimal,
             },
         )
     else:
@@ -65,6 +67,7 @@ async def index(
                 "sort": sort.value,
                 "order": order.value,
                 "is_file_view": False,
+                "minimal": minimal,
             },
         )
 
@@ -73,12 +76,14 @@ async def index(
 async def view_file(
     request: Request,
     path: str,
+    minimal: bool = False,
     root_path: Path = Depends(get_root_path),
 ):
     """View a specific file or folder."""
     # Redirect to main page with path parameter
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=f"/?path={path}", status_code=302)
+    minimal_param = "&minimal=true" if minimal else ""
+    return RedirectResponse(url=f"/?path={path}{minimal_param}", status_code=302)
 
 
 # HTMX partial endpoints

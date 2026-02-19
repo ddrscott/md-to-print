@@ -5,6 +5,27 @@
 {% endblock %}
 
 {% block body %}
+{% if minimal %}
+<!-- Minimal mode: No sidebar, just the preview content -->
+<div class="h-screen flex flex-col">
+    <main class="flex-1 overflow-hidden">
+        {% if is_file_view and preview %}
+        <div class="reading-container" id="reading-container">
+            <div class="paged-content" id="paged-content">
+                {% include "partials/preview.html" %}
+            </div>
+        </div>
+
+        <!-- Expand modal for diagrams -->
+        <div class="expand-modal" id="expand-modal" onclick="closeExpandModal(event)">
+            <button class="expand-modal-close" onclick="closeExpandModal()" title="Close (Esc)">×</button>
+            <div class="expand-modal-content" id="expand-modal-content"></div>
+        </div>
+        {% endif %}
+    </main>
+</div>
+{% else %}
+<!-- Full mode with sidebar -->
 <div class="drawer" id="main-drawer">
     <input id="sidebar-drawer" type="checkbox" class="drawer-toggle" checked />
 
@@ -135,6 +156,7 @@
         </aside>
     </div>
 </div>
+{% endif %}
 
 <script>
     // Theme persistence
@@ -151,15 +173,17 @@
         });
     }
 
-    // Sidebar state persistence
+    // Sidebar state persistence (only in full mode)
     const sidebarDrawer = document.getElementById('sidebar-drawer');
-    const savedSidebar = localStorage.getItem('sidebarOpen');
-    if (savedSidebar !== null) {
-        sidebarDrawer.checked = savedSidebar === 'true';
+    if (sidebarDrawer) {
+        const savedSidebar = localStorage.getItem('sidebarOpen');
+        if (savedSidebar !== null) {
+            sidebarDrawer.checked = savedSidebar === 'true';
+        }
+        sidebarDrawer.addEventListener('change', (e) => {
+            localStorage.setItem('sidebarOpen', e.target.checked);
+        });
     }
-    sidebarDrawer.addEventListener('change', (e) => {
-        localStorage.setItem('sidebarOpen', e.target.checked);
-    });
 
     // Reading view - natural horizontal scroll
     const pagedContent = document.getElementById('paged-content');

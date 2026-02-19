@@ -140,6 +140,7 @@ Examples:
   md-to-print ./docs/                    Convert all .md files in directory
   md-to-print --watch ./docs/            Watch directory for changes
   md-to-print --force ./docs/            Force regenerate all PDFs
+  md-to-print --show document.md         View markdown in browser (no server)
   md-to-print ./docs/ --serve            Start web viewer (auto-selects port)
   md-to-print ./docs/ --serve=8080       Start on specific port
   md-to-print . --serve=0.0.0.0:8080     Bind to all interfaces
@@ -202,6 +203,18 @@ Examples:
         help="Open browser automatically when server starts",
     )
 
+    parser.add_argument(
+        "--show",
+        action="store_true",
+        help="Open markdown file in browser as standalone HTML (no server needed)",
+    )
+
+    parser.add_argument(
+        "--native",
+        action="store_true",
+        help="Open markdown file in native macOS viewer (requires pyobjc-framework-WebKit)",
+    )
+
     args = parser.parse_args()
     path: Path = args.path.resolve()
 
@@ -250,6 +263,34 @@ Examples:
             port=port,
             open_browser=args.open_browser,
         )
+        return
+
+    # Native macOS viewer mode
+    if args.native:
+        if not path.is_file():
+            console.print(f"[error]Error: --native requires a file, not a directory[/]", file=sys.stderr)
+            sys.exit(1)
+        if path.suffix.lower() != ".md":
+            console.print(f"[error]Error: --native requires a markdown file[/]", file=sys.stderr)
+            sys.exit(1)
+
+        from .native_viewer import show_native
+        console.print(f"[warning]Opening[/] [filename]{path.name}[/] in native viewer...")
+        show_native(path)
+        return
+
+    # Show mode - open markdown in browser without server
+    if args.show:
+        if not path.is_file():
+            console.print(f"[error]Error: --show requires a file, not a directory[/]", file=sys.stderr)
+            sys.exit(1)
+        if path.suffix.lower() != ".md":
+            console.print(f"[error]Error: --show requires a markdown file[/]", file=sys.stderr)
+            sys.exit(1)
+
+        from .standalone import show_markdown
+        console.print(f"[warning]Opening[/] [filename]{path.name}[/] in browser...")
+        show_markdown(path)
         return
 
     if path.is_file():

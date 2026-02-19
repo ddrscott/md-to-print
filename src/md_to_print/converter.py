@@ -5,9 +5,11 @@ import shutil
 import subprocess
 import tempfile
 from datetime import datetime
+from html import escape
 from pathlib import Path
 
 import markdown
+import yaml
 from markdown.extensions.codehilite import CodeHiliteExtension
 from markdown.extensions.fenced_code import FencedCodeExtension
 from markdown.extensions.tables import TableExtension
@@ -316,6 +318,58 @@ def _process_ascii_diagram_blocks(md_content: str) -> str:
     return ascii_pattern.sub(replace_ascii, md_content)
 
 
+def extract_front_matter(md_content: str) -> tuple[dict | None, str]:
+    """Extract YAML front matter from markdown content.
+
+    Returns tuple of (front_matter_dict, content_without_front_matter).
+    If no front matter found, returns (None, original_content).
+    """
+    pattern = r'^---\s*\n(.*?)\n---\s*\n'
+    match = re.match(pattern, md_content, re.DOTALL)
+
+    if not match:
+        return None, md_content
+
+    try:
+        front_matter = yaml.safe_load(match.group(1))
+        content_without_fm = md_content[match.end():]
+        return front_matter, content_without_fm
+    except yaml.YAMLError:
+        return None, md_content
+
+
+def front_matter_to_html(front_matter: dict, include_target_blank: bool = False) -> str:
+    """Convert front matter dict to a styled definition list HTML.
+
+    Args:
+        front_matter: Dict of front matter key/value pairs
+        include_target_blank: If True, add target="_blank" to links (for web)
+    """
+    if not front_matter:
+        return ""
+
+    items = []
+    for key, value in front_matter.items():
+        display_key = key.replace("_", " ").title()
+
+        if isinstance(value, str):
+            if value.startswith(("http://", "https://")):
+                target_attr = ' target="_blank" rel="noopener"' if include_target_blank else ''
+                display_value = f'<a href="{escape(value)}"{target_attr}>{escape(value)}</a>'
+            else:
+                display_value = escape(value)
+        elif isinstance(value, list):
+            display_value = ", ".join(escape(str(v)) for v in value)
+        elif value is None:
+            display_value = '<span class="fm-null">—</span>'
+        else:
+            display_value = escape(str(value))
+
+        items.append(f'<dt>{escape(display_key)}</dt><dd>{display_value}</dd>')
+
+    return f'<dl class="front-matter">\n{"".join(items)}\n</dl>'
+
+
 def markdown_to_html(
     md_content: str,
     title: str = "Document",
@@ -335,6 +389,10 @@ def markdown_to_html(
     Returns:
         Complete HTML document as string
     """
+    # Extract front matter before any processing
+    front_matter, md_content = extract_front_matter(md_content)
+    front_matter_html = front_matter_to_html(front_matter) if front_matter else ""
+
     # Process mermaid blocks first (before markdown conversion)
     md_content = _process_mermaid_blocks(md_content, client_side=client_side_mermaid)
     # Process ASCII diagram blocks for client-side rendering
@@ -374,12 +432,49 @@ def markdown_to_html(
         <span class="generated-at">{generated_at}</span>
     </div>
     <article>
+{front_matter_html}
 {html_body}
     </article>
 </body>
 </html>"""
 
     return html_doc
+
+
+def markdown_to_html_body(
+    md_content: str,
+    client_side_mermaid: bool = True,
+) -> tuple[str, str]:
+    """Convert markdown content to HTML body content only (no document wrapper).
+
+    Args:
+        md_content: Raw markdown text
+        client_side_mermaid: If True, preserve mermaid blocks for browser rendering
+
+    Returns:
+        Tuple of (html_body, pygments_css)
+    """
+    # Process mermaid blocks first (before markdown conversion)
+    md_content = _process_mermaid_blocks(md_content, client_side=client_side_mermaid)
+    # Process ASCII diagram blocks for client-side rendering
+    md_content = _process_ascii_diagram_blocks(md_content)
+
+    md = markdown.Markdown(
+        extensions=[
+            FencedCodeExtension(),
+            CodeHiliteExtension(css_class="codehilite", guess_lang=False),
+            TableExtension(),
+            TocExtension(toc_depth=3),
+            "smarty",
+        ]
+    )
+
+    html_body = md.convert(md_content)
+    html_body = _classify_tables(html_body)
+    html_body = _wrap_h1_with_content(html_body)
+    pygments_css = get_pygments_css()
+
+    return html_body, pygments_css
 
 
 def html_to_pdf(

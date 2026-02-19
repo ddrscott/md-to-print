@@ -220,6 +220,55 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   FRONT MATTER (YAML metadata as definition list)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-content .front-matter {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25em 1em;
+    margin: 0 0 1.5em 0;
+    padding: 0.75em 1em;
+    background: var(--paper-dark);
+    border-radius: 6px;
+    border-left: 3px solid var(--orange);
+    font-size: 0.85em;
+    break-inside: avoid;
+}
+
+.preview-content .front-matter dt {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--ink-muted);
+    text-transform: lowercase;
+    white-space: nowrap;
+}
+
+.preview-content .front-matter dt::after {
+    content: ":";
+}
+
+.preview-content .front-matter dd {
+    margin: 0;
+    color: var(--ink);
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.preview-content .front-matter dd a {
+    color: var(--orange);
+    text-decoration: none;
+}
+
+.preview-content .front-matter dd a:hover {
+    text-decoration: underline;
+}
+
+.preview-content .front-matter .fm-null {
+    color: var(--ink-faint);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    HEADINGS
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -463,6 +512,9 @@
     position: relative;
     margin: 0.85em 0;
     break-inside: avoid;
+    /* Limit height to prevent column overflow */
+    max-height: calc(100vh - 150px);
+    overflow: hidden;
 }
 
 .preview-content .table-container:hover .expand-btn {
@@ -480,8 +532,9 @@
 .preview-content .table-wrapper {
     display: block;
     max-width: 100%;
+    max-height: calc(100vh - 180px);
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: auto;
 }
 
 .preview-content table {
